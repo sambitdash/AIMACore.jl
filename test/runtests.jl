@@ -5,7 +5,7 @@ try
         Pkg.add("AIMASamples")
     end
 catch
-    Pkg.clone("https://github.com/sambitdash/AIMASamples.jl.git")
+    Pkg.clone("https://github.com/sambitdash/AIMASamples.jl")
 end
 
 Pkg.test("AIMASamples")
