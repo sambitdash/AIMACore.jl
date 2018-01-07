@@ -202,6 +202,4 @@ struct Agent{AP}
     Agent{AP}(ap::AP) where{AP <: AgentProgram} = new(ap)
 end
 
-function execute(a::Agent, percept::Percept)
-    action = execute(a.program, percept)
-end
+execute(a::Agent, percept::Percept) = execute(a.program, percept)

@@ -19,7 +19,7 @@ const AIMASequence{T} = Union{AbstractSequence{T}, Vector{T}}
 isempty(seq::AbstractSequence) = error(E_ABSTRACT)
 first(seq::AbstractSequence) = error(E_ABSTRACT)
 rest(seq::AbstractSequence) = error(E_ABSTRACT)
-append(seq::AbstractSequence{T}, data::T) = error(E_ABSTRACT)
+append(seq::AbstractSequence{T}, data::T) where{T} = error(E_ABSTRACT)
 
 rest(seq::Vector) = (shift!(seq); seq)
 append(seq::Vector, data) = (push!(seq, data))
@@ -41,11 +41,11 @@ const AIMAQueue{T} = Union{AbstractQueue{T}, Vector{T}}
 isempty(queue::AbstractQueue) = error(E_ABSTRACT)
 empty(queue::AbstractQueue) = error(E_ABSTRACT)
 pop(queue::AbstractQueue) = error(E_ABSTRACT)
-insert(queue::AbstractQueue{T}, data::T) = error(E_ABSTRACT)
+insert(queue::AbstractQueue{T}, data::T) where{T} = error(E_ABSTRACT)
 
 empty(queue::Vector) = empty!(queue)
 pop(queue::Vector) = shift!(queue)
-insert(queue::Vector, data) = append(queue, data)
+insert(queue::Vector{T}, data::T) where{T} = append(queue, data)
 
 append(set::Set, data) = push!(set, data)
 

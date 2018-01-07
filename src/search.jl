@@ -1,7 +1,7 @@
 export Problem,
           result, step_cost, goal_test, actions,
        Node,
-          solution, failure,isless,
+          solution, failure, isless,
        SearchAlgorithm,
           BreadthFirstSearch,
             execute,
@@ -90,8 +90,7 @@ pg. 82 Fig. 3.11 AIMA 3ed
 mutable struct BreadthFirstSearch{FIFO, SET} <: SearchAlgorithm
     frontier::FIFO
     explored::SET
-
-    BreadthFrstSearch{FIFO, SET}() where {FIFO, SET} = new(FIFO(),SET())
+    BreadthFirstSearch{FIFO, SET}() where{FIFO, SET} = new(FIFO(), SET())
 end
 
 function execute(search::BreadthFirstSearch, problem::Problem)
