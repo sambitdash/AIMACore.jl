@@ -1,5 +1,3 @@
-using AIMACore
 using Base.Test
-
-# write your own tests here
-@test 1 == 2
+Pkg.add("AIMASamples")
+Pkg.test("AIMASamples")

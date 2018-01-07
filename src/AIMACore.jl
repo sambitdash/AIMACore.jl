@@ -1,5 +1,6 @@
 module AIMACore
-
-# package code goes here
-
+include("errors.jl")
+include("utils.jl")
+include("agents.jl")
+include("search.jl")
 end # module
