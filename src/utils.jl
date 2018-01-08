@@ -1,58 +1,59 @@
-export  AIMASequence, AbstractSequence,
-            rest, append,
-        AIMATable, AbstractTable,
-            lookup,
-        AIMAQueue, AbstractQueue,
-            empty, pop, insert
+export  rest, append,       # Sequence
+        lookup,             # Table
+        pop, insert  # Queue
 
 import  Base: isempty, first
-#=
-Methods needed in a sequence. Sequence shall not mean an Array or Vector.
-The domain can decide the sequence based on the need. It shall have following
-Methods
-=#
 
-abstract type AbstractSequence{T} end
+method_exists_throw(method, targs) =
+    method_exists(method, targs) || throw(MethodError(method, targs))
 
-const AIMASequence{T} = Union{AbstractSequence{T}, Vector{T}}
+function method_exists_throw(seq)
+    foreach(seq) do x
+        method_exists_throw(x...)
+    end
+    return true
+end
 
-isempty(seq::AbstractSequence) = error(E_ABSTRACT)
-first(seq::AbstractSequence) = error(E_ABSTRACT)
-rest(seq::AbstractSequence) = error(E_ABSTRACT)
-append(seq::AbstractSequence{T}, data::T) where{T} = error(E_ABSTRACT)
+has_trait_sequence(s) = has_trait_sequence(typeof(s), eltype(s)) && s
 
+function has_trait_sequence(ts, ds)
+    seq = [
+        (isempty, (ts,)),
+        (first, (ts,)),
+        (rest, (ts,)),
+        (append, (ts, ds))
+    ]
+    return method_exists_throw(seq)
+end
+
+has_trait_queue(s) = has_trait_queue(typeof(s), eltype(s)) && s
+
+function has_trait_queue(ts, ds)
+    seq = [
+        (isempty, (ts,)),
+        (pop, (ts,)),
+        (insert, (ts, ds)),
+        (replace, (ts, ds))
+    ]
+    method_exists_throw(seq)
+    return true
+end
+
+has_trait_set(s) = has_trait_set(typeof(s), eltype(s)) && s
+has_trait_set(ts, ds) = method_exists_throw(append, (ts, ds))
+
+has_trait_table(t) = has_trait_table(typeof(t), eltype(keys(t)), eltype(values(t))) && t
+has_trait_table(ts, ks, vs) = method_exists_throw(append, (ts, ks))
+
+# Vector: As an AIMA Sequence and Queue
 rest(seq::Vector) = (shift!(seq); seq)
 append(seq::Vector, data) = (push!(seq, data))
-
-#=
-Methods needed in a queue. Queue shall not mean an Array or Vector.
-The domain can decide the sequence based on the need. It shall have following
-Methods
-=#
-
-#@compat abstract type Queue end
-
-#@compat abstract type PriorityQueue end
-
-abstract type AbstractQueue{T} end
-
-const AIMAQueue{T} = Union{AbstractQueue{T}, Vector{T}}
-
-isempty(queue::AbstractQueue) = error(E_ABSTRACT)
-empty(queue::AbstractQueue) = error(E_ABSTRACT)
-pop(queue::AbstractQueue) = error(E_ABSTRACT)
-insert(queue::AbstractQueue{T}, data::T) where{T} = error(E_ABSTRACT)
-
-empty(queue::Vector) = empty!(queue)
+#empty(queue::Vector) = empty!(queue)
 pop(queue::Vector) = shift!(queue)
 insert(queue::Vector{T}, data::T) where{T} = append(queue, data)
 
+#Set: As an AIMA Set
 append(set::Set, data) = push!(set, data)
 
-
-abstract type AbstractTable{K, V} end
-
-const AIMATable{K, V} = Union{AbstractTable{K, V}, Dict{K, V}}
-
-lookup(table::AbstractTable,key) = error(E_ABSTRACT)
+#Dict: as an AIMA Table
 lookup(table::Dict, key) = table[key]
