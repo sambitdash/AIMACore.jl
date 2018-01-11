@@ -21,26 +21,24 @@ function has_trait_sequence(ts, ds)
         (isempty, (ts,)),
         (first, (ts,)),
         (rest, (ts,)),
-        (append, (ts, ds))
+        (append, (ts, ds)),
+        (sort, (ts,))
     ]
     return method_exists_throw(seq)
 end
 
 has_trait_queue(s) = has_trait_queue(typeof(s), eltype(s)) && s
-
-function has_trait_queue(ts, ds)
-    seq = [
+has_trait_queue(ts, ds) = method_exists_throw([
         (isempty, (ts,)),
         (pop, (ts,)),
-        (insert, (ts, ds)),
-        (replace, (ts, ds))
-    ]
-    method_exists_throw(seq)
-    return true
-end
+        (insert, (ts, ds))
+    ])
 
 has_trait_set(s) = has_trait_set(typeof(s), eltype(s)) && s
-has_trait_set(ts, ds) = method_exists_throw(append, (ts, ds))
+has_trait_set(ts, ds) = method_exists_throw([
+        (empty, (ts,)),
+        (append, (ts, ds))
+    ])
 
 has_trait_table(t) = has_trait_table(typeof(t), eltype(keys(t)), eltype(values(t))) && t
 has_trait_table(ts, ks, vs) = method_exists_throw(append, (ts, ks))
@@ -53,7 +51,8 @@ pop(queue::Vector) = shift!(queue)
 insert(queue::Vector{T}, data::T) where{T} = append(queue, data)
 
 #Set: As an AIMA Set
-append(set::Set, data) = push!(set, data)
+append(s::Set, data) = push!(s, data)
+empty(s::Set) = empty!(s)
 
 #Dict: as an AIMA Table
 lookup(table::Dict, key) = table[key]
