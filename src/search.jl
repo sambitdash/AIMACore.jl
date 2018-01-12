@@ -51,7 +51,9 @@ NodeT(state::S, s::Symbol=:none,
     NodeT{S, s}(state, Nullable{NodeT{S, s}}(), action, path_cost, f)
 
 NodeT(state::S, parent::NodeT{S,T},
-    action::Action=Action_NoOp, path_cost::Number=0, f::Number=0) where {S <:State, T} =
+    action::Action=Action_NoOp,
+    path_cost::Number=zero(parent.path_cost),
+    f::Number=zero(parent.f)) where {S <:State, T} =
     NodeT{S, T}(state, Nullable(parent), action, path_cost, f)
 
 isless(n1::NodeT, n2::NodeT) = isless(n1.f, n2.f)
@@ -341,7 +343,8 @@ end
 RecursiveBestFirstSearch{S<:State}(::S) = RecursiveBestFirstSearch{AIMASearchSequence, S}()
 
 function execute(search::RecursiveBestFirstSearch, problem)
-    status, val = RBFS(search, problem, make_node(problem.initial_state), Inf)
+    node = make_node(problem.initial_state)
+    status, val = RBFS(search, problem, node, Infinite(node.f))
     return status == :failure ? :failure : val
 end
 
@@ -353,7 +356,7 @@ function RBFS(search, problem, node, f_limit)
         child = child_node(problem, node, action)
         insert(successors, child)
     end
-    isempty(successors) && return :failure, Inf
+    isempty(successors) && return :failure, Infinite(node.f)
 
     for s in successors
         s.f = max(s.path_cost + heuristic(problem, s.state), node.f)
@@ -363,7 +366,7 @@ function RBFS(search, problem, node, f_limit)
         sort(successors)
         best = successors[1]
         best.f > f_limit && return :failure, best.f
-        alternative = length(successors) > 1 ? successors[2].f : Inf
+        alternative = length(successors) > 1 ? successors[2].f : Infinite(node.f)
         result = RBFS(search, problem, best, min(f_limit, alternative))
         result[1] == :success && return result
         best.f = result[2]

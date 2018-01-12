@@ -1,8 +1,11 @@
 export  rest, append,       # Sequence
         lookup,             # Table
-        pop, insert  # Queue
+        pop, insert,  # Queue
+        Infinite
 
 import  Base: isempty, first
+
+Infinite(x) = typemax(x)
 
 method_exists_throw(method, targs) =
     method_exists(method, targs) || throw(MethodError(method, targs))
