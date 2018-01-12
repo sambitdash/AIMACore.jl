@@ -24,7 +24,7 @@ using Compat
 
 using DataStructures
 
-import Base: isless, in, eltype
+import Base: isless, in, eltype, length
 
 @compat abstract type Problem end
 
@@ -95,7 +95,7 @@ end
 """
 The default implementation of *failure* is throwing an error
 """
-failure(node::Node) = error(E_NODE_NOT_REACHABLE)
+failure(node::NodeT) = error(E_NODE_NOT_REACHABLE)
 
 @compat abstract type SearchAlgorithm end
 
@@ -113,6 +113,7 @@ const AIMASearchLIFO{S<:State} = AIMASearchQueue{S, :lifo}
 
 isempty(q::AIMASearchQueue) = isempty(q.s)
 insert{S<:State, T}(q::AIMASearchQueue{S, T}, d::Node{S}) = push!(q.s, d)
+length(q::AIMASearchQueue) = length(q.s)
 
 pop(q::AIMASearchFIFO) = shift!(q.s)
 pop(q::AIMASearchLIFO) = pop!(q.s)
