@@ -15,8 +15,8 @@ from any work carried out as part of the official sample code available at:
 [aimacode](https://github.com/aimacode). Anyone interested in the official
 version may visit the link provided.
 
-The environment is split into two parts. [AIMACore](AIMACore.jl)
-and [AIMASamples](AIMASamples.jl). *AIMACore* contains the core
+The environment is split into two parts. [AIMACore](https://github.com/sambitdash/AIMACore.jl)
+and [AIMASamples](https://github.com/sambitdash/AIMASamples.jl). *AIMACore* contains the core
 libraries and *AIMASamples* provide examples to test the core library.
 Although, the detailed documentation has not been developed, the intent is
 to the keep the essence of the algorithm as sacrosanct as possible. Algorithms
