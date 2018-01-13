@@ -24,7 +24,7 @@ using Compat
 
 using DataStructures
 
-import Base: isless, in, eltype, length
+import Base: isless, in, eltype, length, empty!
 
 @compat abstract type Problem end
 
@@ -108,6 +108,7 @@ mutable struct AIMASearchQueue{S<:State, T}
      AIMASearchQueue{S, T}() where {S<:State, T} = new(Vector{Node{S}}())
 end
 eltype(q::AIMASearchQueue) = eltype(q.s)
+empty(q::AIMASearchQueue) = empty!(q.s)
 
 const AIMASearchFIFO{S<:State} = AIMASearchQueue{S, :fifo}
 const AIMASearchLIFO{S<:State} = AIMASearchQueue{S, :lifo}
@@ -131,8 +132,7 @@ function insert_or_replace{S <: State, T}(f::Function,
     return insert(q.s, d)
 end
 
-in{S <: State, T}(state::S, q::AIMASearchQueue{S, T}) =
-    (findfirst(x -> x.state == state, q.s) > 0)
+in{S <: State, T}(state::S, q::AIMASearchQueue{S, T}) = any(x -> x.state == state, q.s)
 
 """
 *BreadthFirstSearch* An uninformed graph search technique to reach goal.
@@ -154,6 +154,8 @@ end
 BreadthFirstSearch{S<:State}(::S) = BreadthFirstSearch{AIMASearchFIFO, AIMASearchSet, S}()
 
 function execute(search::BreadthFirstSearch, problem::Problem)
+    empty(search.frontier)
+    empty(search.explored)
     node = NodeT(problem.initial_state, :none)
     goal_test(problem, node.state) && return solution(node)
     insert(search.frontier, node)
@@ -176,6 +178,7 @@ const AIMASearchPQ_Base{S<:State, NT} = PriorityQueue{S, NodeT{S, NT}}
 
 pop(pq::AIMASearchPQ_Base) = ((key,val) = peek(pq); dequeue!(pq); val)
 peekv(pq::AIMASearchPQ_Base) = ((key,val) = peek(pq); val)
+empty(pq::AIMASearchPQ_Base) = while(!isempty(pq));dequeue!(pq);end
 insert{S <: State, NT}(pq::AIMASearchPQ_Base{S, NT}, node::NodeT{S, NT}) =
     enqueue!(pq, node.state, node)
 replace{S <: State, NT}(pq::AIMASearchPQ_Base{S, NT}, node::NodeT{S, NT}) =
@@ -216,6 +219,8 @@ end
 UniformCostSearch{S<:State}(::S) = UniformCostSearch{AIMASearchPQ, AIMASearchSet, S}()
 
 function execute(search::UniformCostSearch, problem) #returns a solution, or failure
+    empty(search.frontier)
+    empty(search.explored)
     node = make_node(problem.initial_state)
     insert(search.frontier, node)
 
@@ -313,9 +318,10 @@ GraphSearchBestFirst{S<:State}(::S)    = GraphSearchBestFirst{S}()
 GraphSearchAStar{S<:State}(::S)        = GraphSearchAStar{S}()
 
 function execute{SQ, SET, S<:State, T}(search::GraphSearch{SQ, SET, S, T}, problem)
+    empty(search.frontier)
+    empty(search.explored)
     node = NodeT(problem.initial_state, T)
     insert(search.frontier, node)
-    empty(search.explored)
 
     while(true)
         isempty(search.frontier) && return failure(node)

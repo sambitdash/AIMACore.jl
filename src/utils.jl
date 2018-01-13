@@ -18,20 +18,18 @@ function method_exists_throw(seq)
 end
 
 has_trait_sequence(s) = has_trait_sequence(typeof(s), eltype(s)) && s
-
-function has_trait_sequence(ts, ds)
-    seq = [
+has_trait_sequence(ts, ds) = method_exists_throw([
+        (empty, (ts,)),
         (isempty, (ts,)),
         (first, (ts,)),
         (rest, (ts,)),
         (append, (ts, ds)),
         (sort, (ts,))
-    ]
-    return method_exists_throw(seq)
-end
+    ])
 
 has_trait_queue(s) = has_trait_queue(typeof(s), eltype(s)) && s
 has_trait_queue(ts, ds) = method_exists_throw([
+        (empty, (ts,)),
         (isempty, (ts,)),
         (pop, (ts,)),
         (insert, (ts, ds))
@@ -49,7 +47,7 @@ has_trait_table(ts, ks, vs) = method_exists_throw(append, (ts, ks))
 # Vector: As an AIMA Sequence and Queue
 rest(seq::Vector) = (shift!(seq); seq)
 append(seq::Vector, data) = (push!(seq, data))
-#empty(queue::Vector) = empty!(queue)
+empty(queue::Vector) = empty!(queue)
 pop(queue::Vector) = shift!(queue)
 insert(queue::Vector{T}, data::T) where{T} = append(queue, data)
 

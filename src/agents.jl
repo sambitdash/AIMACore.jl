@@ -49,7 +49,7 @@ abstract type Action end
 """
 struct NoOpActionType <: Action
   val::Symbol
-  NoOpActionType() = new("NoOp")
+  NoOpActionType() = new(Symbol("NoOp"))
 end
 
 const Action_NoOp = NoOpActionType()
@@ -72,7 +72,7 @@ Given a *Percept* returns an *Action* apt for the agent.
 Depending on the agent program the function may respond with different *Action*
 evaluation strategies.
 """
-execute{AP <: AgentProgram}(ap::AP, p::Percept) = error(E_ABSTRACT)
+execute(ap::AP, p::Percept) where {AP <: AgentProgram} = error(E_ABSTRACT)
 
 """
 *TableDrivenAgentProgram* is a simple model of an agent program where all
