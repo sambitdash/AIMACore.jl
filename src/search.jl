@@ -1,5 +1,5 @@
 export  Problem,
-            result, step_cost, goal_test, actions, heuristic,
+            result, step_cost, goal_test, actions, heuristic, state_value, successor_states,
         Node,
             solution, failure, isless,
         SearchAlgorithm,
@@ -15,6 +15,7 @@ export  Problem,
                 GraphSearchUniformCost,
                 GraphSearchBestFirst,
                 GraphSearchAStar,
+            HillClimbingSearch,
         AIMASearchFIFO,
         AIMASearchLIFO,
         AIMASearchPQ,
@@ -24,7 +25,7 @@ using Compat
 
 using DataStructures
 
-import Base: isless, in, eltype, length, empty!
+import Base: ==, isless, in, eltype, length, empty!
 
 @compat abstract type Problem end
 
@@ -33,6 +34,9 @@ step_cost(problem::Problem, state::State, action::Action) = error(E_ABSTRACT)
 goal_test(problem::Problem, state::State) = error(E_ABSTRACT)
 actions(problem::Problem,state::State) = error(E_ABSTRACT)
 heuristic(problem::Problem, state::State) = error(E_ABSTRACT)
+state_value(problem::Problem, state::State) = error(E_ABSTRACT)
+successor_states(problem::Problem, state::State) = error(E_ABSTRACT)
+
 
 search(problem::Problem) = execute(problem.search_algorithm, problem)
 
@@ -378,3 +382,104 @@ function RBFS(search, problem, node, f_limit)
         best.f = result[2]
     end
 end
+
+struct StateNode{S<:State}
+    state::S
+    value::Number
+end
+
+StateNode(state::S) where S <: State = StateNode(state, 0)
+
+isless(n1::StateNode, n2::StateNode)  = isless(n1.value, n2.value)
+==(n1::StateNode, n2::StateNode) = n1.value == n2.value
+
+
+successor_node(problem, state::State) = StateNode(state, state_value(problem, state))
+
+const AIMASearchStateSequence{S<:State} = Vector{StateNode{S}}
+sort(sq::AIMASearchStateSequence) = sort!(sq, rev=true)
+
+struct HillClimbingSearch{SQ, S<:State} <: SearchAlgorithm
+    SQ_t::Type
+    plateau::Int
+    HillClimbingSearch{SQ, S}(plateau::Int=typemax(Int)) where {SQ, S<:State} =
+        has_trait_sequence(SQ{S}, StateNode{S}) && new(Type(SQ{S}), plateau)
+end
+
+HillClimbingSearch{S<:State}(::S, plateau::Int=typemax(Int)) =
+    HillClimbingSearch{AIMASearchStateSequence, S}(plateau)
+
+function execute(search::HillClimbingSearch, problem)
+    node = StateNode(problem.initial_state, state_value(problem, problem.initial_state))
+    cnt = 0
+    while true
+        successors = search.SQ_t()
+        for state in successor_states(problem, node.state)
+            successor = successor_node(problem, state)
+            insert(successors, successor)
+        end
+        sort(successors)
+        neighbor = successors[1]
+        neighbor < node && return node.state
+        if neighbor == node
+            cnt >= search.plateau && return node.state
+            cnt += 1
+        elseif neighbor > node
+            cnt = 0
+        end
+        println("$cnt:$(node.value)")
+        node = neighbor
+    end
+end
+
+#=
+struct SimulatedAnnealingSearch{SQ, S<:State} <: SearchAlgorithm
+    SQ_t::Type
+    SimulatedAnnealingSearch{SQ, S}() where {SQ, S<:State} =
+        has_trait_sequence(SQ{S}, Node{S}) && new(Type(SQ{S}))
+end
+
+function execute(search::SimulatedAnnealingSearch, problem, schedule)
+    inputs: problem, a problem
+    schedule, a mapping from time to “temperature”
+    node = make_node(problem.initial_state)
+
+    t = 1.0
+    while true
+        T = schedule(t)
+        T == 0 && return node
+        successors = search.SQ_t()
+        for action in actions(problem, node.state)
+            child = child_node(problem, node, action)
+            insert(successors, child)
+        end
+        next = rand(successors)
+        de = next.f - node.f
+        p = de > 0 ? 1.0 : exp(de/T)
+        if rand(Float64) < p
+            node = next
+        end
+        t += 1
+    end
+end
+
+function G ENETIC -A LGORITHM( population , FITNESS -F N) returns an individual
+    inputs: population , a set of individuals
+    FITNESS -F N, a function that measures the fitness of an individual
+    repeat
+    new population ← empty set
+    for i = 1 to S IZE ( population) do
+    x ← RANDOM -S ELECTION ( population, FITNESS -F N)
+    y ← RANDOM -S ELECTION ( population , FITNESS -F N)
+    child ← REPRODUCE (x , y)
+    if (small random probability) then child ← M UTATE(child )
+    add child to new population
+    population ← new population
+    until some individual is fit enough, or enough time has elapsed
+    return the best individual in population , according to FITNESS -F N
+    function R EPRODUCE(x , y) returns an individual
+    inputs: x , y, parent individuals
+    n ← L ENGTH(x ); c ← random number from 1 to n
+    return A PPEND (S UBSTRING(x , 1, c), S UBSTRING(y, c + 1, n))
+end
+=#
