@@ -8,4 +8,4 @@ catch
     Pkg.clone("https://github.com/sambitdash/AIMASamples.jl")
 end
 
-Pkg.test("AIMASamples")
+include(joinpath(Pkg.dir("AIMASamples"), "test", "runtests.jl"))
