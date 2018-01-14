@@ -43,7 +43,7 @@ search(problem::Problem) = execute(problem.search_algorithm, problem)
 
 mutable struct NodeT{S<:State, T}
     state::S
-    parent::Nullable{NodeT{S, T}}
+    parent::Union{NodeT{S, T}, Void}
     action::Action
     path_cost::Number
     f::Number
@@ -53,13 +53,13 @@ const Node{S <: State} = NodeT{S, :none}
 
 NodeT(state::S, s::Symbol=:none,
       action::Action=Action_NoOp, path_cost::Number=0, f::Number=0) where {S<: State} =
-    NodeT{S, s}(state, Nullable{NodeT{S, s}}(), action, path_cost, f)
+    NodeT{S, s}(state, nothing, action, path_cost, f)
 
 NodeT(state::S, parent::NodeT{S,T},
     action::Action=Action_NoOp,
     path_cost::Number=zero(parent.path_cost),
     f::Number=zero(parent.f)) where {S <:State, T} =
-    NodeT{S, T}(state, Nullable(parent), action, path_cost, f)
+    NodeT{S, T}(state, parent, action, path_cost, f)
 
 isless(n1::NodeT, n2::NodeT) = isless(n1.f, n2.f)
 
@@ -93,8 +93,8 @@ function solution{S<:State, T}(node::NodeT{S, T})
     nodes = Vector{NodeT{S, T}}()
     while true
         unshift!(nodes, node)
-        isnull(node.parent) && break
-        node = get(node.parent)
+        node.parent === nothing && break
+        node = node.parent
     end
     return nodes
 end
