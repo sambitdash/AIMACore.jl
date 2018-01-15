@@ -5,6 +5,8 @@ export  rest, append,       # Sequence
 
 import  Base: isempty, first
 
+const AIMASequence{T} = Vector{T}
+
 Infinite(x) = typemax(x)
 
 method_exists_throw(method, targs) =
@@ -24,7 +26,9 @@ has_trait_sequence(ts, ds) = method_exists_throw([
         (first, (ts,)),
         (rest, (ts,)),
         (append, (ts, ds)),
-        (sort, (ts,))
+        (sort, (ts,)),
+        (endof,(ts,)),
+        (getindex, (ts, Integer))
     ])
 
 has_trait_queue(s) = has_trait_queue(typeof(s), eltype(s)) && s
@@ -50,6 +54,7 @@ append(seq::Vector, data) = (push!(seq, data))
 empty(queue::Vector) = empty!(queue)
 pop(queue::Vector) = shift!(queue)
 insert(queue::Vector{T}, data::T) where{T} = append(queue, data)
+sort(seq::Vector) = sort!(sq)
 
 #Set: As an AIMA Set
 append(s::Set, data) = push!(s, data)

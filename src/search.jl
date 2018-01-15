@@ -17,6 +17,8 @@ export  Problem,
                 GraphSearchAStar,
             HillClimbingSearch,
             SimulatedAnnealingSearch,
+            GeneticAlgorithmSearch,
+                mutate, reproduce, random_state,
         AIMASearchFIFO,
         AIMASearchLIFO,
         AIMASearchPQ,
@@ -465,54 +467,80 @@ function execute(search::SimulatedAnnealingSearch, problem)
     end
 end
 
-#=
+mutable struct Population{SQN, SQF}
+    nodes::SQN
+    cweights::SQF
+    Population{SQN, SQF}() where {SQN, SQF} = new(SQN(), SQF())
+end
 
-const Population{S<:State} = AIMASearchStateSequence{S}
+length(p::Population) = length(p.nodes)
 
-weights(p::Population) = [s.value for s in p]
-
-sum_weights(p::Population) = sum(weights(p))
+function add(p::Population{SQN, SQF}, s::S, v::Number) where {SQN, SQF, S <:State }
+    append(p.nodes, StateNode(s, v))
+    append(p.cweights, isempty(p.cweights) ? Float64(v) : Float64(v) + p.cweights[end])
+end
 
 function random_selection(p::Population)
-    wt = rand()*sum_weights(p)
-    sum = zero(p[1].value)
-    for x in p
-        sum += x.value
-        sum >= wt && return x
-    end
+    wt = rand()*p.cweights[end]
+    i = findfirst(x -> x > wt, p.cweights)
+    return p.nodes[i].state
 end
 
-mutate{S <: State}(s::S)
+function initialize(p::Population{SQN, SQF},
+    st::S, fitnessFN::Function, size::Int) where {SQN, SQF, S <:State}
+    p.nodes = SQN()
+    p.cweights = SQF()
+    for i = 1:size
+        s = random_state(st)
+        add(p, s, fitnessFN(s))
+    end
+    return p
+end
+
+best_individual(p::Population) = findmax(p.nodes)
+
+mutate(s::S) where {S <: State} = error(E_ABSTRACT)
+reproduce(s::S) where {S <: State} = error(E_ABSTRACT)
+random_state(s::S) where {S <: State} = error(E_ABSTRACT)
 
 struct GeneticAlgorithmSearch{SQ, S<:State} <: SearchAlgorithm
+    SQ_t::Type
     fitnessFN::Function
-
+    niter::Int
+    pop_size::Int
+    p_mutate::Float64
     GeneticAlgorithmSearch{SQ, S}(fitnessFN::Function,
-        p_mutate::Float64) where {SQ, S<:State} =
-        has_trait_sequence(SQ{S}, Node{S}) && new(Type(SQ{S}), fitnessFN)
+        niter::Int=1000, pop_size::Int=1000, p_mutate::Float64=0.1) where {SQ, S<:State} =
+        has_trait_sequence(SQ{S}, S) &&
+            new(Type(SQ), fitnessFN, niter, pop_size, p_mutate)
 end
 
+GeneticAlgorithmSearch{S<:State}(::S, fitnessFN::Function) =
+    GeneticAlgorithmSearch{AIMASequence, S}(fitnessFN)
+
 function execute(search::GeneticAlgorithmSearch, problem)
-    inputs: population , a set of individuals
-    FITNESS -F N, a function that measures the fitness of an individual
+    SQN = search.SQ_t{StateNode}
+    SQF = search.SQ_t{Float64}
+    population = Population{SQN, SQF}()
+    initialize(population, problem.initial_state, search.fitnessFN, search.pop_size)
+
+    citer = 0
     while true
-        new_population = search.SQ_t()
+        new_population = Population{SQN, SQF}()
         for i = 1:length(population)
             x = random_selection(population)
             y = random_selection(population)
-            child ← REPRODUCE (x , y)
-        if (small random probability) then child ← M UTATE(child )
-        add child to new population
-        population ← new population
-        until some individual is fit enough, or enough time has elapsed
+            child = reproduce(x , y)
+            if (rand() < search.p_mutate)
+                child = mutate(child)
+            end
+            add(new_population, child, search.fitnessFN(child))
+        end
+        population = new_population
+        citer += 1
+        result, idx = best_individual(population)
+        if (citer > search.niter || goal_test(problem, result.state))
+            return result.state
+        end
     end
-    return the best individual in population , according to FITNESS -F N
 end
-
-function reproduce(x , y)
-    n = length(x)
-    c = rand(1:n)
-    return A PPEND (S UBSTRING(x , 1, c), S UBSTRING(y, c + 1, n))
-end
-
-=#
