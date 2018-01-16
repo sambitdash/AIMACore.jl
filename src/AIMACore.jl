@@ -1,3 +1,5 @@
+__precompile__()
+
 module AIMACore
 include("errors.jl")
 include("utils.jl")
