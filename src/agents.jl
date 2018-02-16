@@ -36,7 +36,7 @@ abstract type AgentProgram end
 *Action* is an agent's response to the environment through actuators.
 
 Although the representation of a string may suffice for more most sample
-programs, an abstract type is introduced to emphacize the need for
+programs, an abstract type is introduced to emphasize the need for
 providing a concrete type based on the environment or agent at hand.
 
 In most problems we try to solve, the *Action* may be driven by the choice
@@ -58,7 +58,7 @@ const Action_NoOp = NoOpActionType()
 *Percept* is an input to the *Agent* from environment through sensors.
 
 Although the representation of a Tuple may suffice for more most sample
-programs, an abstract type is introduced to emphacize the need for
+programs, an abstract type is introduced to emphasize the need for
 providing a concrete type based on the environment or agent at hand.
 
 In most problems we try to solve, the *Percept* may be driven by the choice
