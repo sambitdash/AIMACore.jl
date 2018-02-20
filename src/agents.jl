@@ -24,7 +24,7 @@ Pg. 35, AIMA 3ed
 abstract type Environment end
 
 """
-*AgentProgram* is an internal representation of an agent function with an
+*AgentProgram* is an internal representation of an agent function with a 
 concrete implementation. While *agent function* can be abstract *AgentProgram*
 provides clear direction to the implementation.
 
@@ -45,7 +45,7 @@ of the *Environment*
 abstract type Action end
 
 """
-*NoOp* is a directive where the agent does not take any futher action.
+*NoOp* is a directive where the agent does not take any further action.
 """
 struct NoOpActionType <: Action
   val::Symbol
