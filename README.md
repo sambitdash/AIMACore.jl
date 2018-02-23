@@ -28,3 +28,11 @@ the additional test libraries.
 This sample program library is built as Julia packages which can be loaded into
  the Julia runtime easily. For testing purposes, data files are downloaded from the
  [aimacode/aima-data](https://github.com/aimacode/aima-data) during the build process.
+ 
+ ## Contribution Guidelines
+ 
+ 1. Anyone interested in contributing to the library is free to submit PRs. 
+ 2. However, it's advisable to create an "Issue" and describe what you are working on and 
+ how that can benefit the library. Duplication of efforts and surprises are an unnecessary 
+ overheads to planning. It's suggested to review issues and collaborate with someone already 
+ working on an issue than create a parallel contribution for the same.
