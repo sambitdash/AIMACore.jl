@@ -36,3 +36,7 @@ This sample program library is built as Julia packages which can be loaded into
  how that can benefit the library. Duplication of efforts and surprises are an unnecessary 
  overheads to planning. It's suggested to review issues and collaborate with someone already 
  working on an issue than create a parallel contribution for the same.
+ 3. Avoid submitting resolution of multiple issues in one PR. Submission of small PRs makes
+ it easier for review. 
+ 4. Make sure to add elaborate test cases in `AIMASamples` for every code change submitted. 
+ Untested code is hard to validate for correctness. 
