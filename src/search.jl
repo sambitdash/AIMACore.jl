@@ -16,6 +16,7 @@ export  Problem,
                 GraphSearchBestFirst,
                 GraphSearchAStar,
             HillClimbingSearch,
+            AndOrSearch,
             SimulatedAnnealingSearch,
             GeneticAlgorithmSearch,
                 mutate, reproduce, random_state,
@@ -401,6 +402,54 @@ successor_node(problem, state::State) = StateNode(state, state_value(problem, st
 
 const AIMASearchStateSequence{S<:State} = Vector{StateNode{S}}
 sort(sq::AIMASearchStateSequence) = sort!(sq, rev=true)
+
+""" AndOrSearch implementation
+Traverse child node by summing up g(n) with heuristic value h(n). In case of 
+AND operator being found, both the child nodes connected to the parent node have to summed up
+right to the end of the tree. In other case ie. OR operator, only one of the branch is to be calculated.
+Path with least value of f(n) is taken.
+"""
+
+struct AndOrSearch{SQ,S<:State} <: SearchAlgorithm
+    explored::SET
+    AndOrSearch{SQ,S}() where {SQ, S <:State}= has_trait_queue(SQ{S}, NodeT{S, NT})
+end
+
+AndOrSearch{S<:State}(::S) = AndOrSearch{S}()
+
+function OrSearch{S <:State}(problem, parent::NodeT{S, :greedy}, action)
+    state = result(problem, parent.state, action)
+    path_cost = parent.path_cost + step_cost(problem, parent.state, action)
+    return NodeT(state, parent, action, path_cost, path_cost + heuristic(problem, state))
+end
+
+function AndSearch{S <:State}(problem, parent::NodeT{S, :greedy}, action)
+    state = result(problem, parent.state, action)
+    path_cost = parent.path_cost + step_cost(problem, parent.state, action)
+    pop(q::SET) = shift!(::SET)
+    path_cost = parent.path_cost + step_cost(problem, parent.state, action)
+    return NodeT(state, parent, action, path_cost, path_cost + heuristic(problem, state))
+end 
+
+function execute(search::AndOrSearch, problem)
+    node = StateNode(problem.initial_state, state_value(problem, problem.initial_state))
+    while true
+        successors = search.SET()
+        for state in successor_states(problem, node.state)
+            successor = successor_node(problem, state)
+            insert(successors, successor)
+        end
+        sort(successors)
+        if action==AndSearch
+            AndSearch(problem,node,action)
+        end
+        else
+            OrSearch(problem,node,action)
+        end
+    end
+end
+
+#- HillClimbingSearch implementation
 
 struct HillClimbingSearch{SQ, S<:State} <: SearchAlgorithm
     SQ_t::Type
