@@ -1,10 +1,12 @@
+import Base: ==, expand, length, in, search;
 export  Problem,
             result, step_cost, goal_test, actions, heuristic, state_value, successor_states,
         Node,
             solution, failure, isless,
         SearchAlgorithm,
-            BreadthFirstSearch,
-                execute,
+            BreadthFirstSearch,OnlineDFSAgentProgram,
+            OnlineSearchProblem, LRTAStarAgentProgram,
+                execute,test_and_or_graph_search,
             UniformCostSearch,
             DepthLimitedSearch,
             IterativeDeepeningSearch,
@@ -543,4 +545,411 @@ function execute(search::GeneticAlgorithmSearch, problem)
             return result.state
         end
     end
+end
+
+
+#=
+Julia - GSOC
+
+Ahmed Madbouly
+
+Implementation for AND-OR, Online DFS, LRTA
+=#
+
+abstract type AbstractProblemStruct end;
+
+mutable struct ProblemStruct <: AbstractProblemStruct
+    initial::String
+    goal::Nullable{String}
+
+    function ProblemStruct(initial_state::String; goal_state::Union{Void, String}=nothing)
+        return new(initial_state, Nullable{String}(goal_state));
+    end
+
+end
+
+#=
+    OnlineDFSAgentProgram is a online depth first search agent (Fig. 4.21)
+=#
+mutable struct OnlineDFSAgentProgram <: AgentProgram
+    result::Dict
+    untried::Dict
+    unbacktracked::Dict
+    state::Nullable{String}
+    action::Nullable{String}
+    problem::AbstractProblemStruct
+
+    function OnlineDFSAgentProgram{T <: AbstractProblemStruct}(problem::T)
+        return new(Dict(), Dict(), Dict(), Nullable{String}(), Nullable{String}(), problem);
+    end
+end
+
+struct MemoizedFunction
+    f::Function     #original function
+    values::Dict{Tuple{Vararg}, Any}
+
+    function MemoizedFunction(f::Function)
+        return new(f, Dict{Tuple{Vararg}, Any}());
+    end
+end
+
+struct Graph{N}
+    dict::Dict{N, Any}
+    locations::Dict{N, Tuple{Any, Any}}
+    directed::Bool
+
+    function Graph{N}(;dict::Union{Void, Dict{N, }}=nothing, locations::Union{Void, Dict{N, Tuple{Any, Any}}}=nothing, directed::Bool=true) where N
+        local ng::Graph;
+        if ((typeof(dict) <: Void) && (typeof(locations) <: Void))
+            ng = new(Dict{Any, Any}(), Dict{Any, Tuple{Any, Any}}(), Bool(directed));
+        elseif (typeof(locations) <: Void)
+            ng = new(Dict{eltype(dict.keys), Any}(dict), Dict{Any, Tuple{Any, Any}}(), Bool(directed));
+        else
+            ng = new(Dict{eltype(dict.keys), Any}(dict), Dict{eltype(locations.keys), Tuple{Any, Any}}(locations), Bool(directed));
+        end
+        if (!ng.directed)
+            make_undirected(ng);
+        end
+        return ng;
+    end
+
+    function Graph{N}(graph::Graph{N}) where N
+        return new(Dict{Any, Any}(graph.dict), Dict{String, Tuple{Any, Any}}(graph.locations), Bool(graph.directed));
+    end
+end
+
+struct OnlineSearchProblem <: AbstractProblemStruct
+    initial::String
+    goal::String
+    graph::Graph
+    least_costs::Dict
+    h::Function
+
+    function OnlineSearchProblem(initial::String, goal::String, graph::Graph, least_costs::Dict)
+        return new(initial, goal, graph, least_costs, online_search_least_cost);
+    end
+end
+
+struct GraphProblemStruct <: AbstractProblemStruct
+    initial::String
+    goal::Any
+    graph::Graph
+    h::MemoizedFunction
+
+
+    function GraphProblemStruct(initial_state::String, goal_state, graph::Graph)
+        return new(initial_state, goal_state, Graph(graph), MemoizedFunction(initial_to_goal_distance));
+    end
+end
+
+mutable struct InstrumentedProblemStruct <: AbstractProblemStruct
+    problem::AbstractProblemStruct
+    actions::Int64
+    results::Int64
+    goal_tests::Int64
+    found::Nullable
+
+    function InstrumentedProblemStruct{T <: AbstractProblemStruct}(ap::T)
+        return new(ap, Int64(0), Int64(0), Int64(0), Nullable(nothing));
+    end
+end
+
+mutable struct LRTAStarAgentProgram <: AgentProgram
+    H::Dict
+    state::Nullable{String}
+    action::Nullable{String}
+    problem::AbstractProblemStruct
+
+    function LRTAStarAgentProgram{T <: AbstractProblemStruct}(problem::T)
+        return new(Dict(), Nullable{String}(), Nullable{String}(), problem);
+    end
+end
+
+
+function initial_to_goal_distance(gp::GraphProblemStruct, n::Node)
+    local locations = gp.graph.locations;
+    if (isempty(locations))
+        return Inf;
+    else
+        return Float64(floor(distance(locations[n.state], locations[gp.goal])));
+    end
+end
+
+# One-dimensional state space example (Fig. 4.23)
+one_dim_state_space = Graph{String}(dict=Dict{String, Dict{String, String}}([Pair("State_1", Dict([Pair("Right", "State_2")])),
+                                        Pair("State_2", Dict([Pair("Right", "State_3"),
+                                                            Pair("Left", "State_1")])),
+                                        Pair("State_3", Dict([Pair("Right", "State_4"),
+                                                            Pair("Left", "State_2")])),
+                                        Pair("State_4", Dict([Pair("Right", "State_5"),
+                                                            Pair("Left", "State_3")])),
+                                        Pair("State_5", Dict([Pair("Right", "State_6"),
+                                                            Pair("Left", "State_4")])),
+                                        Pair("State_6", Dict([Pair("Left", "State_5")]))]));
+
+one_dim_state_space_least_costs = Dict([Pair("State_1", 8),
+                                        Pair("State_2", 9),
+                                        Pair("State_3", 2),
+                                        Pair("State_4", 2),
+                                        Pair("State_5", 4),
+                                        Pair("State_6", 3)]);
+
+vacumm_world = Graph{String}(dict=Dict{String, Dict{String, Array{String,1}}}(
+    "State_1" => Dict("Suck" => ["State_7", "State_5"], "Right" => ["State_2"]),
+    "State_2" => Dict("Suck" => ["State_8", "State_4"], "Left" => ["State_2"]),
+    "State_3" => Dict("Suck" => ["State_7"], "Right" => ["State_4"]),
+    "State_4" => Dict("Suck" => ["State_4", "State_2"], "Left" => ["State_3"]),
+    "State_5" => Dict("Suck" => ["State_5", "State_1"], "Right" => ["State_6"]),
+    "State_6" => Dict("Suck" => ["State_8"], "Left" => ["State_5"]),
+    "State_7" => Dict("Suck" => ["State_7", "State_3"], "Right" => ["State_8"]),
+    "State_8" => Dict("Suck" => ["State_8", "State_6"], "Left" => ["State_7"])
+    ));
+
+vacumm_world = GraphProblemStruct("State_1", ["State_7","State_8"], vacumm_world);
+
+function is_in(elt, seq):
+    """Similar to (elt in seq), but compares with "is", not "=="."""
+    return any(e -> e == elt ,seq)
+end
+
+
+function make_undirected(graph::Graph)
+    for location_A in keys(graph.dict)
+        for (location_B, d) in graph.dict[location_A]
+            connect_nodes(graph, location_B, location_A, distance=d);
+        end
+    end
+end
+
+
+
+
+function connect_nodes(graph::Graph{N}, A::N, B::N; distance::Int64=Int64(1)) where N
+    get!(graph.dict, A, Dict{String, Int64}())[B]=distance;
+    if (!graph.directed)
+        get!(graph.dict, B, Dict{String, Int64}())[A]=distance;
+    end
+    nothing;
+end
+
+function and_or_graph_search{T <: AbstractProblemStruct}(ProblemStruct::T)
+    return or_search(ProblemStruct, ProblemStruct.initial, []);
+end
+
+function goal_test(osp::OnlineSearchProblem, state::String)
+    if (state == osp.goal)
+        return true;
+    else
+        return false;
+    end
+end
+
+function goal_test(osp::GraphProblemStruct, state)
+    if osp.goal isa Array
+        return is_in(state, osp.goal)
+    else
+        return state == osp.goal
+    end
+end
+
+function or_search{T <: AbstractProblemStruct}(ProblemStruct::T, state::String, path::AbstractVector)
+    if (goal_test(ProblemStruct, state))
+        return [];
+    end
+    if (state in path)
+        return nothing;
+    end
+    for action in actions(ProblemStruct, state)
+        local plan = and_search(ProblemStruct, get_result(ProblemStruct, state, action), vcat(path, [state,]));
+        if (plan != nothing)
+            return [action, plan];
+        end
+    end
+    return nothing;
+end
+
+function get_linked_nodes(graph::Graph{N}, a::N; b::Union{Void, N}=nothing) where N
+    local linked = get!(graph.dict, a, Dict{Any, Any}());
+    if (typeof(b) <: Void)
+        return linked;
+    else
+        return get(linked, b, nothing);
+    end
+end
+
+function actions(osp::OnlineSearchProblem, state::String)
+    return collect(keys(osp.graph.dict[state]));
+end
+
+function get_result(osp::OnlineSearchProblem, state::String, action::String)
+    return osp.graph.dict[state][action];
+end
+
+function online_search_least_cost(osp::OnlineSearchProblem, state::String)
+    return osp.least_costs[state];
+end
+
+function path_cost(osp::OnlineSearchProblem, state1::String, action::String, state2::String)
+    return 1;
+end
+
+
+function and_search{T <: AbstractProblemStruct}(ProblemStruct::T, states::AbstractVector, path::AbstractVector)
+    local plan = Dict{Any, Any}();
+    for state in states
+        plan[state] = or_search(ProblemStruct, state, path);
+        if (plan[state] == nothing)
+            return nothing;
+        end
+    end
+    return plan;
+end
+
+function get_result(gp::GraphProblemStruct, state::String, action::String)
+    if gp.graph.dict[state][action] isa Array
+        return get_a(gp.graph,state, action);
+    else
+        return action;
+    end
+end
+
+function get_a(graph,a, b = nothing)
+    if !haskey(graph.dict , a)
+        graph.dict[a] = Dict{Any,Any}();
+    end
+    links = graph.dict[a]
+    if b == nothing
+        return links
+    else
+        return links[b]
+    end
+end
+
+
+function argmin{T <: AbstractVector}(seq::T, fn::Function)
+    local best_element = seq[1];
+    local best_score = fn(best_element);
+    for element in seq
+        element_score = fn(element);
+        if (element_score < best_score)
+            best_element = element;
+            best_score = element_score;
+        end
+    end
+    return best_element;
+end
+
+function goal_test(ap::InstrumentedProblemStruct, state::AbstractVector)
+    ap.goal_tests = ap.goal_tests + 1;
+    local result::Bool = goal_test(ap.ProblemStruct, state);
+    if (result)
+        ap.found = Nullable(state);
+    end
+    return result;
+end
+
+function actions(gp::GraphProblemStruct, loc::String)
+    return collect(keys(get_linked_nodes(gp.graph,loc)));
+end
+
+
+#=
+    LRTAStarAgentProgram is an AgentProgram implementation of LRTA*-Agent (Fig. 4.24).
+=#
+
+
+
+function execute(odfsap::OnlineDFSAgentProgram, percept::String)
+    local s_prime::String = update_state(odfsap, percept);
+    if (goal_test(odfsap.problem, s_prime))
+        odfsap.action = Nullable{String}();
+    else
+        if (!(s_prime in keys(odfsap.untried)))
+            odfsap.untried[s_prime] = actions(odfsap.problem, s_prime);
+        end
+        if (!isnull(odfsap.state))
+            if (haskey(odfsap.result, (odfsap.state, odfsap.action)))
+                if (s_prime != odfsap.result[(odfsap.state, odfsap.action)])
+                    odfsap.result[(odfsap.state, odfsap.action)] = s_prime;
+                    unshift!(odfsap.unbacktracked[s_prime], odfsap.state);
+                end
+            else
+                if (s_prime != [])
+                    odfsap.result[(odfsap.state, odfsap.action)] = s_prime;
+                    unshift!(odfsap.unbacktracked[s_prime], odfsap.state);
+                end
+            end
+        end
+        if (length(odfsap.untried[s_prime]) == 0)
+            if (length(odfsap.unbacktracked[s_prime]) == 0)
+                odfsap.action = Nullable{String}();
+            else
+                first_item = shift!(odfsap.unbacktracked[s_prime]);
+                for (state, b) in keys(odfsap.result)
+                    if (odfsap.result[(state, b)] == first_item)
+                        odfsap.action = b;
+                        break;
+                    end
+                end
+            end
+        else
+            odfsap.action = shift!(odfsap.untried[s_prime]);
+        end
+    end
+    odfsap.state = s_prime;
+    return odfsap.action;
+end
+
+function learning_realtime_astar_cost(lrtaap::LRTAStarAgentProgram, state::String, action::String, s_prime::String, H::Dict)
+    if (haskey(lrtaap.H, s_prime))
+        return path_cost(lrtaap.problem, state, action, s_prime) + lrtaap.H[s_prime];
+    else
+        return path_cost(lrtaap.problem, state, action, s_prime) + lrtaap.problem.h(lrtaap.problem, s_prime);
+    end
+end
+
+function execute(lrtaap::LRTAStarAgentProgram, s_prime::String)
+    if (goal_test(lrtaap.problem, s_prime))
+        lrtaap.action = Nullable{String}();
+        return nothing;
+    else
+        if (!haskey(lrtaap.H, s_prime))
+            lrtaap.H[s_prime] = lrtaap.problem.h(lrtaap.problem, s_prime);
+        end
+        if (!isnull(lrtaap.state))
+            lrtaap.H[get(lrtaap.state)] = reduce(min, learning_realtime_astar_cost(lrtaap,
+                                                                        get(lrtaap.state),
+                                                                        b,
+                                                                        get_result(lrtaap.problem, get(lrtaap.state), b),
+                                                                        lrtaap.H)
+                                        for b in actions(lrtaap.problem, get(lrtaap.state)));
+        end
+        lrtaap.action = argmin(actions(lrtaap.problem, s_prime),
+                                (function(b::String)
+                                    return learning_realtime_astar_cost(lrtaap,
+                                                                        s_prime,
+                                                                        b,
+                                                                        get_result(lrtaap.problem, s_prime, b),
+                                                                        lrtaap.H);
+                                end));
+        lrtaap.state = s_prime;
+        return get(lrtaap.action);
+    end
+end
+
+
+function test_and_or_graph_search()
+    function run_plan(state, problem, plan)
+        if goal_test(problem,state)
+            return True
+        end
+        if length(plan) != 2
+            return False
+        end
+        println(length(plan))
+        predicate = x -> run_plan(x, problem, plan[1][x])
+        return all(predicate , get_result(problem,state, plan[0])) # Error Here
+    end
+    plan = and_or_graph_search(vacumm_world)
+    return run_plan("State_1", vacumm_world, plan)
 end
