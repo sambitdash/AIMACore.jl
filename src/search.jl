@@ -24,28 +24,26 @@ export  Problem,
         AIMASearchPQ,
         AIMASearchSet
 
-using Compat
-
 using DataStructures
 
 import Base: ==, isless, in, eltype, length, empty!
 
-@compat abstract type Problem end
+abstract type Problem end
 
-result(problem::Problem, state::State, action::Action) = error(E_ABSTRACT)
+result(problem::Problem, state::State, action::Action)    = error(E_ABSTRACT)
 step_cost(problem::Problem, state::State, action::Action) = error(E_ABSTRACT)
-goal_test(problem::Problem, state::State) = error(E_ABSTRACT)
-actions(problem::Problem,state::State) = error(E_ABSTRACT)
-heuristic(problem::Problem, state::State) = error(E_ABSTRACT)
-state_value(problem::Problem, state::State) = error(E_ABSTRACT)
-successor_states(problem::Problem, state::State) = error(E_ABSTRACT)
+goal_test(problem::Problem, state::State)                 = error(E_ABSTRACT)
+actions(problem::Problem,state::State)                    = error(E_ABSTRACT)
+heuristic(problem::Problem, state::State)                 = error(E_ABSTRACT)
+state_value(problem::Problem, state::State)               = error(E_ABSTRACT)
+successor_states(problem::Problem, state::State)          = error(E_ABSTRACT)
 
 
 search(problem::Problem) = execute(problem.search_algorithm, problem)
 
 mutable struct NodeT{S<:State, T}
     state::S
-    parent::Union{NodeT{S, T}, Void}
+    parent::Union{NodeT{S, T}, Nothing}
     action::Action
     path_cost::Number
     f::Number
@@ -53,37 +51,41 @@ end
 
 const Node{S <: State} = NodeT{S, :none}
 
-NodeT(state::S, s::Symbol=:none,
-      action::Action=Action_NoOp, path_cost::Number=0, f::Number=0) where {S<: State} =
+NodeT(state::S,
+      s::Symbol=:none,
+      action::Action=Action_NoOp,
+      path_cost::Number=0, f::Number=0) where S <: State =
     NodeT{S, s}(state, nothing, action, path_cost, f)
 
-NodeT(state::S, parent::NodeT{S,T},
-    action::Action=Action_NoOp,
-    path_cost::Number=zero(parent.path_cost),
-    f::Number=zero(parent.f)) where {S <:State, T} =
+NodeT(state::S,
+      parent::NodeT{S,T},
+      action::Action=Action_NoOp,
+      path_cost::Number=zero(parent.path_cost),
+      f::Number=zero(parent.f)) where {S <:State, T} =
     NodeT{S, T}(state, parent, action, path_cost, f)
 
 isless(n1::NodeT, n2::NodeT) = isless(n1.f, n2.f)
 
-make_node{S<:State}(state::S, s::Symbol) = NodeT(state, s)
-make_node{S<:State}(state::S) = make_node(state, :none)
+make_node(state::S, s::Symbol) where S <: State = NodeT(state, s)
+make_node(state::S)            where S <: State = make_node(state, :none)
 
-function child_node{S <:State}(problem, parent::NodeT{S, :none}, action)
+function child_node(problem, parent::NodeT{S, :none}, action) where S <: State
     state = result(problem, parent.state, action)
     path_cost = parent.path_cost + step_cost(problem, parent.state, action)
     return NodeT(state, parent, action, path_cost, path_cost)
 end
 
-function child_node{S <:State}(problem, parent::NodeT{S, :greedy}, action)
+function child_node(problem, parent::NodeT{S, :greedy}, action) where S <: State
     state = result(problem, parent.state, action)
     path_cost = parent.path_cost + step_cost(problem, parent.state, action)
     return NodeT(state, parent, action, path_cost, heuristic(problem, state))
 end
 
-function child_node{S <:State}(problem, parent::NodeT{S, :astar}, action)
+function child_node(problem, parent::NodeT{S, :astar}, action) where S <: State
     state = result(problem, parent.state, action)
     path_cost = parent.path_cost + step_cost(problem, parent.state, action)
-    return NodeT(state, parent, action, path_cost, path_cost + heuristic(problem, state))
+    return NodeT(state, parent, action, path_cost,
+                 path_cost + heuristic(problem, state))
 end
 
 """
@@ -91,10 +93,10 @@ The default implementation of *solution* is returning the sequence of nodes.
 This may not be ideal for many implementations. They may provide a more
 elaborate reporting as well.
 """
-function solution{S<:State, T}(node::NodeT{S, T})
+function solution(node::NodeT{S, T}) where {S <: State, T}
     nodes = Vector{NodeT{S, T}}()
     while true
-        unshift!(nodes, node)
+        pushfirst!(nodes, node)
         node.parent === nothing && break
         node = node.parent
     end
@@ -106,7 +108,7 @@ The default implementation of *failure* is throwing an error
 """
 failure(node::NodeT) = error(E_NODE_NOT_REACHABLE)
 
-@compat abstract type SearchAlgorithm end
+abstract type SearchAlgorithm end
 
 const AIMASearchSet{S<:State} = Set{S}
 
@@ -122,24 +124,28 @@ const AIMASearchLIFO{S<:State} = AIMASearchQueue{S, :lifo}
 
 
 isempty(q::AIMASearchQueue) = isempty(q.s)
-insert{S<:State, T}(q::AIMASearchQueue{S, T}, d::Node{S}) = push!(q.s, d)
+insert(q::AIMASearchQueue{S, T}, d::Node{S}) where {S <: State, T} =
+    push!(q.s, d)
 length(q::AIMASearchQueue) = length(q.s)
 
-pop(q::AIMASearchFIFO) = shift!(q.s)
+pop(q::AIMASearchFIFO) = popfirst!(q.s)
 pop(q::AIMASearchLIFO) = pop!(q.s)
 
-function insert_or_replace{S <: State, T}(f::Function,
-    q::AIMASearchQueue{S, T}, d::Node{S})
-    state = start(q.s)
-    while !done(q.s, state)
+function insert_or_replace(f::Function,
+                           q::AIMASearchQueue{S, T},
+                           d::Node{S}) where {S <: State, T}
+    next = iterate(q.s)
+    while next !== nothing 
+        i, state = next
         ps = state
-        (i, state) = next(q.s, state)
+        next = iterate(q.s, state)
         i.state == d.state && return f(i) ? splice!(q.s, ps, [d]) : nothing
     end
     return insert(q.s, d)
 end
 
-in{S <: State, T}(state::S, q::AIMASearchQueue{S, T}) = any(x -> x.state == state, q.s)
+in(state::S, q::AIMASearchQueue{S, T}) where {S <: State, T} =
+    any(x -> x.state == state, q.s)
 
 """
 *BreadthFirstSearch* An uninformed graph search technique to reach goal.
@@ -158,7 +164,8 @@ mutable struct BreadthFirstSearch{FIFO, SET, S<:State} <: SearchAlgorithm
         new(has_trait_queue(FIFO{S}()), has_trait_set(SET{S}()))
 end
 
-BreadthFirstSearch{S<:State}(::S) = BreadthFirstSearch{AIMASearchFIFO, AIMASearchSet, S}()
+BreadthFirstSearch(::S) where {S<:State} =
+    BreadthFirstSearch{AIMASearchFIFO, AIMASearchSet, S}()
 
 function execute(search::BreadthFirstSearch, problem::Problem)
     empty(search.frontier)
@@ -186,14 +193,15 @@ const AIMASearchPQ_Base{S<:State, NT} = PriorityQueue{S, NodeT{S, NT}}
 pop(pq::AIMASearchPQ_Base) = ((key,val) = peek(pq); dequeue!(pq); val)
 peekv(pq::AIMASearchPQ_Base) = ((key,val) = peek(pq); val)
 empty(pq::AIMASearchPQ_Base) = while(!isempty(pq));dequeue!(pq);end
-insert{S <: State, NT}(pq::AIMASearchPQ_Base{S, NT}, node::NodeT{S, NT}) =
+insert(pq::AIMASearchPQ_Base{S, NT}, node::NodeT{S, NT}) where {S <: State, NT} =
     enqueue!(pq, node.state, node)
-replace{S <: State, NT}(pq::AIMASearchPQ_Base{S, NT}, node::NodeT{S, NT}) =
-    (pq[node.state] = node)
-in{S <: State, NT}(state::S, pq::AIMASearchPQ_Base{S, NT}) = haskey(pq, state)
+replace(pq::AIMASearchPQ_Base{S, NT},
+        node::NodeT{S, NT}) where {S <: State, NT} = (pq[node.state] = node)
+in(state::S, pq::AIMASearchPQ_Base{S, NT}) where {S <: State, NT} =
+    haskey(pq, state)
 
-function insert_or_replace{S <: State, NT}(f::Function,
-    pq::AIMASearchPQ_Base{S, NT}, node::NodeT{S, NT})
+function insert_or_replace(f::Function,
+    pq::AIMASearchPQ_Base{S, NT}, node::NodeT{S, NT}) where {S <: State, NT}
     !haskey(pq, node.state) && return enqueue!(pq, node.state, node)
     f(pq[node.state]) && return (pq[node.state] = node)
 end
@@ -217,15 +225,17 @@ mutable struct UniformCostSearch{PQ, SET, S<:State} <: SearchAlgorithm
     explored::SET
     UniformCostSearch{PQ, SET, S}() where {PQ, SET, S<:State} =
         has_trait_queue(PQ{S}, Node{S}) &&
-        method_exists(replace, (PQ{S}, Node{S})) &&
-        method_exists(in, (S, PQ{S})) &&
-        method_exists(get, (PQ{S}, S, Node{S})) &&
+        hasmethod(replace, (PQ{S}, Node{S})) &&
+        hasmethod(in, (S, PQ{S})) &&
+        hasmethod(get, (PQ{S}, S, Node{S})) &&
         new(PQ{S}(), has_trait_set(SET{S}()))
 end
 
-UniformCostSearch{S<:State}(::S) = UniformCostSearch{AIMASearchPQ, AIMASearchSet, S}()
+UniformCostSearch(::S) where {S <: State} =
+    UniformCostSearch{AIMASearchPQ, AIMASearchSet, S}()
 
-function execute(search::UniformCostSearch, problem) #returns a solution, or failure
+#returns a solution, or failure
+function execute(search::UniformCostSearch, problem)
     empty(search.frontier)
     empty(search.explored)
     node = make_node(problem.initial_state)
@@ -239,7 +249,8 @@ function execute(search::UniformCostSearch, problem) #returns a solution, or fai
 
         for action in actions(problem, node.state)
             child = child_node(problem, node, action)
-            if !(child.state in search.explored) && !(child.state in search.frontier)
+            if !(child.state in search.explored) &&
+                !(child.state in search.frontier)
                 insert(search.frontier, child)
             elseif (child.state in search.frontier) &&
                     (child.path_cost < get(search.frontier, child.state,
@@ -304,27 +315,29 @@ mutable struct GraphSearch{SQ, SET, S<:State, NT} <: SearchAlgorithm
     explored::SET
     GraphSearch{SQ, SET, S, NT}() where {SQ, SET, S<:State, NT} =
         has_trait_queue(SQ{S}, NodeT{S, NT}) &&
-        method_exists(insert_or_replace, (Function, SQ{S}, NodeT{S, NT})) &&
+        hasmethod(insert_or_replace, (Function, SQ{S}, NodeT{S, NT})) &&
         new(SQ{S}(), has_trait_set(SET{S}()))
 end
 
-const GraphSearchBreadth{S <: State} = GraphSearch{AIMASearchFIFO, AIMASearchSet, S, :none}
-const GraphSearchDepth{S <: State}   = GraphSearch{AIMASearchLIFO, AIMASearchSet, S, :none}
+const GraphSearchBreadth{S <: State} =
+    GraphSearch{AIMASearchFIFO, AIMASearchSet, S, :none}
+const GraphSearchDepth{S <: State}   =
+    GraphSearch{AIMASearchLIFO, AIMASearchSet, S, :none}
 const GraphSearchUniformCost{S <: State} =
     GraphSearch{AIMASearchPQ, AIMASearchSet, S, :none}
-
 const GraphSearchBestFirst{S <: State} =
     GraphSearch{AIMASearchPQ_G, AIMASearchSet, S, :greedy}
 const GraphSearchAStar{S <: State} =
         GraphSearch{AIMASearchPQ_A, AIMASearchSet, S, :astar}
 
-GraphSearchBreadth{S<:State}(::S)      = GraphSearchBreadth{S}()
-GraphSearchDepth{S<:State}(::S)        = GraphSearchDepth{S}()
-GraphSearchUniformCost{S<:State}(::S)  = GraphSearchUniformCost{S}()
-GraphSearchBestFirst{S<:State}(::S)    = GraphSearchBestFirst{S}()
-GraphSearchAStar{S<:State}(::S)        = GraphSearchAStar{S}()
+GraphSearchBreadth(::S)     where S <: State = GraphSearchBreadth{S}()
+GraphSearchDepth(::S)       where S <: State = GraphSearchDepth{S}()
+GraphSearchUniformCost(::S) where S <: State = GraphSearchUniformCost{S}()
+GraphSearchBestFirst(::S)   where S <: State = GraphSearchBestFirst{S}()
+GraphSearchAStar(::S)       where S <: State = GraphSearchAStar{S}()
 
-function execute{SQ, SET, S<:State, T}(search::GraphSearch{SQ, SET, S, T}, problem)
+function execute(search::GraphSearch{SQ, SET, S, T},
+                 problem) where {SQ, SET, S<:State, T}
     empty(search.frontier)
     empty(search.explored)
     node = NodeT(problem.initial_state, T)
@@ -349,11 +362,12 @@ sort(sq::AIMASearchSequence) = sort!(sq)
 
 struct RecursiveBestFirstSearch{SQ, S<:State} <: SearchAlgorithm
     SQ_t::Type
-    RecursiveBestFirstSearch{SQ, S}() where {SQ, S<:State} =
-        has_trait_sequence(SQ{S}, Node{S}) && new(Type(SQ{S}))
+    RecursiveBestFirstSearch{SQ, S}() where {SQ, S <: State} =
+        has_trait_sequence(SQ{S}, Node{S}) && new(SQ{S})
 end
 
-RecursiveBestFirstSearch{S<:State}(::S) = RecursiveBestFirstSearch{AIMASearchSequence, S}()
+RecursiveBestFirstSearch(::S) where S <: State =
+    RecursiveBestFirstSearch{AIMASearchSequence, S}()
 
 function execute(search::RecursiveBestFirstSearch, problem)
     node = make_node(problem.initial_state)
@@ -406,10 +420,10 @@ struct HillClimbingSearch{SQ, S<:State} <: SearchAlgorithm
     SQ_t::Type
     plateau::Int
     HillClimbingSearch{SQ, S}(plateau::Int=typemax(Int)) where {SQ, S<:State} =
-        has_trait_sequence(SQ{S}, StateNode{S}) && new(Type(SQ{S}), plateau)
+        has_trait_sequence(SQ{S}, StateNode{S}) && new(SQ{S}, plateau)
 end
 
-HillClimbingSearch{S<:State}(::S, plateau::Int=typemax(Int)) =
+HillClimbingSearch(::S, plateau::Int=typemax(Int)) where S <: State =
     HillClimbingSearch{AIMASearchStateSequence, S}(plateau)
 
 function execute(search::HillClimbingSearch, problem)
@@ -438,15 +452,16 @@ struct SimulatedAnnealingSearch{SQ, S<:State} <: SearchAlgorithm
     SQ_t::Type
     schedule::Function
     SimulatedAnnealingSearch{SQ, S}(schedule::Function) where {SQ, S<:State} =
-        has_trait_sequence(SQ{S}, Node{S}) && new(Type(SQ{S}), schedule)
+        has_trait_sequence(SQ{S}, Node{S}) && new(SQ{S}, schedule)
 end
 
-SimulatedAnnealingSearch{S<:State}(::S,
-    schedule::Function=(x-> x > 10000.0 ? 0.0 : 1.0/x)) =
+SimulatedAnnealingSearch(::S,
+    schedule::Function=(x-> x > 10000.0 ? 0.0 : 1.0/x)) where S <: State =
     SimulatedAnnealingSearch{AIMASearchStateSequence, S}(schedule)
 
 function execute(search::SimulatedAnnealingSearch, problem)
-    node = StateNode(problem.initial_state, state_value(problem, problem.initial_state))
+    node = StateNode(problem.initial_state,
+                     state_value(problem, problem.initial_state))
     schedule = search.schedule
     t = 1.0
     while true
@@ -475,7 +490,8 @@ end
 
 length(p::Population) = length(p.nodes)
 
-function add(p::Population{SQN, SQF}, s::S, v::Number) where {SQN, SQF, S <:State }
+function add(p::Population{SQN, SQF},
+             s::S, v::Number) where {SQN, SQF, S <:State }
     append(p.nodes, StateNode(s, v))
     append(p.cweights, isempty(p.cweights) ? Float64(v) : Float64(v) + p.cweights[end])
 end
@@ -499,9 +515,9 @@ end
 
 best_individual(p::Population) = findmax(p.nodes)
 
-mutate(s::S) where {S <: State} = error(E_ABSTRACT)
-reproduce(s::S) where {S <: State} = error(E_ABSTRACT)
-random_state(s::S) where {S <: State} = error(E_ABSTRACT)
+mutate(s::S)       where S <: State = error(E_ABSTRACT)
+reproduce(s::S)    where S <: State = error(E_ABSTRACT)
+random_state(s::S) where S <: State = error(E_ABSTRACT)
 
 struct GeneticAlgorithmSearch{SQ, S<:State} <: SearchAlgorithm
     SQ_t::Type
@@ -512,17 +528,18 @@ struct GeneticAlgorithmSearch{SQ, S<:State} <: SearchAlgorithm
     GeneticAlgorithmSearch{SQ, S}(fitnessFN::Function,
         niter::Int=1000, pop_size::Int=1000, p_mutate::Float64=0.1) where {SQ, S<:State} =
         has_trait_sequence(SQ{S}, S) &&
-            new(Type(SQ), fitnessFN, niter, pop_size, p_mutate)
+            new(SQ, fitnessFN, niter, pop_size, p_mutate)
 end
 
-GeneticAlgorithmSearch{S<:State}(::S, fitnessFN::Function) =
+GeneticAlgorithmSearch(::S, fitnessFN::Function) where S <: State =
     GeneticAlgorithmSearch{AIMASequence, S}(fitnessFN)
 
 function execute(search::GeneticAlgorithmSearch, problem)
     SQN = search.SQ_t{StateNode}
     SQF = search.SQ_t{Float64}
     population = Population{SQN, SQF}()
-    initialize(population, problem.initial_state, search.fitnessFN, search.pop_size)
+    initialize(population, problem.initial_state,
+               search.fitnessFN, search.pop_size)
 
     citer = 0
     while true

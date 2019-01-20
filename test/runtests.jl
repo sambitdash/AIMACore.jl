@@ -1,11 +1,6 @@
-using Base.Test
+using Test
+using Pkg
 
-try
-    if Pkg.installed("AIMASamples") == nothing
-        Pkg.add("AIMASamples")
-    end
-catch
-    Pkg.clone("https://github.com/sambitdash/AIMASamples.jl")
-end
+Pkg.clone("https://github.com/sambitdash/AIMASamples.jl")
 
-include(joinpath(Pkg.dir("AIMASamples"), "test", "runtests.jl"))
+import AIMASamples; joinpath(dirname(pathof(AIMASamples)), "test", "runtests.jl")

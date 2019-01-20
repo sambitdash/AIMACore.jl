@@ -11,8 +11,6 @@ export  execute,
         State,
         Rule
 
-using Compat
-
 """
 An agent perceives an *environment* through sensors and acts with actuators.
 
