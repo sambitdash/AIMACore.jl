@@ -5,7 +5,7 @@ export  execute,
         Agent,
         AgentProgram,
             TableDrivenAgentProgram,
-            ReflexVacuumAgentProgram,
+            SimpleProblemSolvingAgentProgram,
             SimpleReflexAgentProgram,
             ModelBasedReflexAgentProgram,
         State,
@@ -33,7 +33,7 @@ abstract type AgentProgram end
 """
 *Action* is an agent's response to the environment through actuators.
 
-Although the representation of a string may suffice for more most sample
+Although the representation of a string may suffice for most of the sample
 programs, an abstract type is introduced to emphasize the need for
 providing a concrete type based on the environment or agent at hand.
 
@@ -55,7 +55,7 @@ const Action_NoOp = NoOpActionType()
 """
 *Percept* is an input to the *Agent* from environment through sensors.
 
-Although the representation of a Tuple may suffice for more most sample
+Although the representation of a Tuple may suffice for most of the sample
 programs, an abstract type is introduced to emphasize the need for
 providing a concrete type based on the environment or agent at hand.
 
@@ -67,7 +67,7 @@ abstract type Percept end
 """
 Given a *Percept* returns an *Action* apt for the agent.
 
-Depending on the agent program the function may respond with different *Action*
+Depending on the agent program, the function may respond with different *Action*
 evaluation strategies.
 """
 execute(ap::AP, p::Percept) where {AP <: AgentProgram} = error(E_ABSTRACT)
@@ -81,8 +81,8 @@ Look at the corresponding execute method for *Action* evaluation strategy.
 
 The implementation must have the following methods:
 
-1. append - percept to the list of percepts seen my the AgentProgram
-2. lookup - the percepts in the tables of the AgentProgram
+1. append - current percept to the list of percepts seen by the AgentProgram
+2. lookup - the percepts in the table of the AgentProgram
 
 Fig 2.7 Pg. 47, AIMA 3ed
 """
@@ -104,7 +104,7 @@ abstract type Rule end
 
 """
 *State* is an internal evaluated position of the Environment. In the context
-of the problem the *Environment* can be one of the stated states. Any input or'
+of the problem the *Environment* can be one of the stated states. Any input or
 action may lead to change in *Environment* state.
 """
 abstract type State end
@@ -117,8 +117,8 @@ It does not depend on the historical percept data.
 
 It needs to implement two methods
 
-1. interpret_input
-2. rule_match
+1. interpret_input - generates an abstracted description of the current state from the *Percept*
+2. rule_match - returns the first rule in the set of rules that matches the given state description
 
 for all the concrete implementations.
 

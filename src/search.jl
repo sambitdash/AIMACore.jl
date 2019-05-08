@@ -561,3 +561,30 @@ function execute(search::GeneticAlgorithmSearch, problem)
         end
     end
 end
+struct AND_ORGraphSearch{SQ,S<:State} <: SearchAlgorithm
+    SQ_t::Type
+    #AND_Search::SearchAlgorithm
+    AND_ORGraphSearch{SQ,S}() where {SQ,S<:State} = 
+
+end
+function OR_Search(::
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
